@@ -1,79 +1,202 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Registration Form with HTML5 Validation</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Interactive SVG Drawing Tool</title>
   <style>
+    :root {
+      --bg: #0f172a;         /* slate-900 */
+      --panel: #111827;      /* gray-900 */
+      --muted: #94a3b8;      /* slate-400 */
+      --accent: #22d3ee;     /* cyan-400 */
+      --white: #ffffff;
+      --shadow: 0 10px 25px rgba(0,0,0,.4);
+    }
+
+    * { box-sizing: border-box; }
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;
+      color: var(--white);
+      background: radial-gradient(1200px 600px at 10% 0%, #0b1027 0, var(--bg) 50%),
+                  radial-gradient(800px 400px at 90% 0%, #0a2a37 0, var(--bg) 60%);
+      display: grid;
+      place-items: center;
+      padding: 24px;
     }
-    form {
-      background: #fff;
-      padding: 20px 30px;
-      border-radius: 10px;
-      box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
-      width: 350px;
+
+    .app { width: min(1100px, 100%); display: grid; gap: 16px; }
+
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 12px 14px; border-radius: 16px; box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
     }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #333;
+    .toolbar .group { display: flex; gap: 8px; align-items: center; }
+    .toolbar label { font-size: 13px; color: var(--muted); }
+    select, input[type="number"], input[type="color"] {
+      background: #0b1328; color: var(--white); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px; padding: 8px 10px; outline: none;
     }
-    label {
-      display: block;
-      margin-top: 10px;
-      font-weight: bold;
+
+    .canvas-wrap {
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 20px; box-shadow: var(--shadow);
+      overflow: hidden; position: relative;
     }
-    input[type="text"],
-    input[type="email"],
-    input[type="number"] {
-      width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      box-sizing: border-box;
+
+    .hint {
+      position: absolute; inset: auto 12px 12px 12px;
+      color: var(--muted); font-size: 12px; text-align: center;
+      pointer-events: none; user-select: none;
     }
-    input[type="submit"] {
-      margin-top: 15px;
-      width: 100%;
-      padding: 12px;
-      background-color: #4CAF50;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    input[type="submit"]:hover {
-      background-color: #45a049;
-    }
+
+    svg { display: block; width: 100%; height: clamp(320px, 65vh, 720px); background: #0b1021; }
+    .drawing { cursor: crosshair; }
+    .footer { color: var(--muted); font-size: 12px; text-align: center; }
   </style>
 </head>
 <body>
-  <form>
-    <h2>Student Registration</h2>
-    
-    <!-- Name -->
-    <label for="name">Full Name:</label>
-    <input type="text" id="name" name="name" placeholder="Enter your name" required 
-           pattern="[A-Za-z\s]+" title="Name should contain only letters and spaces">
+  <main class="app">
+    <section class="toolbar" aria-label="Drawing controls">
+      <div class="group">
+        <label for="shape">Shape</label>
+        <select id="shape" aria-label="Select shape">
+          <option value="rect">Rectangle</option>
+          <option value="line">Line</option>
+        </select>
+      </div>
 
-    <!-- Email -->
-    <label for="email">Email Address:</label>
-    <input type="email" id="email" name="email" placeholder="Enter your email" required>
+      <div class="group">
+        <label for="strokeColor">Stroke</label>
+        <input id="strokeColor" type="color" value="#22d3ee" aria-label="Stroke color" />
+      </div>
 
-    <!-- Age -->
-    <label for="age">Age:</label>
-    <input type="number" id="age" name="age" placeholder="Enter your age" min="15" max="100" required>
-    
-    <input type="submit" value="Register">
-  </form>
+      <div class="group">
+        <label for="strokeWidth">Stroke Width</label>
+        <input id="strokeWidth" type="number" min="1" max="20" value="3" aria-label="Stroke width" />
+      </div>
+
+      <div class="group" id="fillGroup">
+        <label for="fillColor">Fill (rect)</label>
+        <input id="fillColor" type="color" value="#00000000" aria-label="Fill color for rectangle" />
+      </div>
+    </section>
+
+    <section class="canvas-wrap">
+      <svg id="canvas" role="img" aria-label="SVG drawing area" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(255,255,255,.06)"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
+      <div class="hint">Tip: Click and drag to draw. Release to finish. Repeat to draw multiple shapes.</div>
+    </section>
+
+    <p class="footer">Implements <code>mousedown</code>, <code>mousemove</code>, and <code>mouseup</code> for real-time SVG drawing (no reloads).</p>
+  </main>
+
+  <script>
+    (function() {
+      const svg = document.getElementById('canvas');
+      const shapeSel = document.getElementById('shape');
+      const strokeColor = document.getElementById('strokeColor');
+      const strokeWidth = document.getElementById('strokeWidth');
+      const fillColor = document.getElementById('fillColor');
+      const fillGroup = document.getElementById('fillGroup');
+
+      let isDrawing = false;
+      let startX = 0, startY = 0;
+      let elem = null; // currently drawn SVG element
+
+      function updateFillVisibility() {
+        fillGroup.style.display = shapeSel.value === 'rect' ? 'flex' : 'none';
+      }
+      updateFillVisibility();
+      shapeSel.addEventListener('change', updateFillVisibility);
+
+      // Mouse position relative to the SVG viewport
+      function getMousePosition(evt) {
+        const rect = svg.getBoundingClientRect();
+        return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+      }
+
+      // Start drawing
+      svg.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Only left-click
+        isDrawing = true;
+        svg.classList.add('drawing');
+        const { x, y } = getMousePosition(e);
+        startX = x; startY = y;
+
+        if (shapeSel.value === 'line') {
+          elem = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          elem.setAttribute('x1', startX);
+          elem.setAttribute('y1', startY);
+          elem.setAttribute('x2', startX);
+          elem.setAttribute('y2', startY);
+          elem.setAttribute('fill', 'none');
+        } else {
+          elem = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          elem.setAttribute('x', startX);
+          elem.setAttribute('y', startY);
+          elem.setAttribute('width', 0);
+          elem.setAttribute('height', 0);
+          elem.setAttribute('fill', fillColor.value || 'transparent');
+        }
+
+        elem.setAttribute('stroke', strokeColor.value);
+        elem.setAttribute('stroke-width', Number(strokeWidth.value) || 1);
+        elem.setAttribute('stroke-linecap', 'round');
+        elem.setAttribute('stroke-linejoin', 'round');
+        svg.appendChild(elem);
+      });
+
+      // While drawing
+      svg.addEventListener('mousemove', (e) => {
+        if (!isDrawing || !elem) return;
+        const { x, y } = getMousePosition(e);
+
+        if (elem.tagName === 'line') {
+          elem.setAttribute('x2', x);
+          elem.setAttribute('y2', y);
+        } else if (elem.tagName === 'rect') {
+          // Drag in any direction (handle negative size)
+          const rx = Math.min(x, startX);
+          const ry = Math.min(y, startY);
+          const rw = Math.abs(x - startX);
+          const rh = Math.abs(y - startY);
+          elem.setAttribute('x', rx);
+          elem.setAttribute('y', ry);
+          elem.setAttribute('width', rw);
+          elem.setAttribute('height', rh);
+        }
+      });
+
+      // Finish drawing
+      function endDrawing() {
+        if (!isDrawing) return;
+        isDrawing = false;
+        svg.classList.remove('drawing');
+        elem = null; // keep shapes; allows multiple drawings
+      }
+      svg.addEventListener('mouseup', endDrawing);
+      svg.addEventListener('mouseleave', endDrawing);
+
+      // Live update fill for rectangles while drawing
+      fillColor.addEventListener('input', () => {
+        if (elem && elem.tagName === 'rect') {
+          elem.setAttribute('fill', fillColor.value || 'transparent');
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
